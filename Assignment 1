@@ -1,0 +1,420 @@
+######### RUN THE CODE BELOW IN R. R-STUDIO IS THE RECOMMENDED IDE. BOTH R AND R-STUDIO ARE FREE.
+######### QUESTIONS SHOULD BE POSTED TO PIAZZA
+######### THE ACTUAL ASSIGNMENT BEGINS ON LINE 71
+
+
+### Multilateral Development Institution Data
+foo <- read.csv("https://tinyurl.com/yb4phxx8") # read in the data
+
+# column names
+names(foo)
+
+# dimensions of the data set
+dim(foo)
+
+# quick look at the data structure
+head(foo)
+
+# one thing to be very careful with (in this data set) is the use of dates. 8 columns involve dates.
+
+# take note of the columns representing calendar dates
+date.columns <- c(11, 12, 14, 15, 16, 17, 18, 25)
+
+# these columns need some tweaking--I want to address missing values, calling the blank (empty) 
+# elements "NA" instead of leaving them blank, and I wish to tell R these are "Date" objects.
+
+for (i in date.columns){  # this "for loop" only loops through the "date.columns" -- no other columns.
+  
+  # identify which values are missing in the "i"th column of the foo data set
+  which_values_are_missing <- which(as.character(foo[, i]) == "")
+  
+  # those values that are missing (blank) in the "i"th column are replaced by <NA>
+  # because R knows how to handle "NA" -- NA means something special in R--blanks are handled 
+  # more unpredictably (which is bad).
+  foo[which_values_are_missing, i] <- NA
+  
+  # last step--replace each of these columns (which is structured as a column of "factor" values)
+  # as a column of dates--i.e., convert them to an object of "class" = Date. They are dates, after all.
+  # And if you convert them to the Date class, R will know they are dates and you can manipulate 
+  # dates in a simple, straightforward way. Otherwise, you won't be able to easily manipulate them
+  # arithmetically.  E.g., for simple Date operations, see lines 48-58 below...
+  # **By the way, if you don't understand what a "factor" is in R, you should Google it.** 
+  foo[, i] <- as.Date(as.character(foo[, i]))
+}
+
+# Now R knows that these columns are comprised of dates
+# for example...  Replicate this yourself...
+
+# foo[3,12]
+# [1] "1968-03-13"
+
+# foo[4,12]
+# [1] "1968-07-03"
+
+# foo[3,12] - foo[4,12]
+# Time difference of -112 days
+
+################################################################################################################################################################################################
+######## QUESTION 0 STARTS HERE: Cleaning up the data frame to have appropriate dates
+# Making a new variable, "which.have.NAs" to contain all the NAs 
+# within the CirculationDate column
+which.have.NAs <- which(is.na(foo$CirculationDate == TRUE))
+
+# Making my new dataframe, "new_foo" which is created from the old df
+# and subtracting the rows which have NAs 
+new_foo <- foo[-which.have.NAs,]
+
+# I'm making a new variable to store all the rows which have a date greater than
+# or equal to 2008-01-01
+cleaned_rows <- new_foo$CirculationDate >= "2008-01-01" #rows
+
+# Here is my third data frame which new_foo - the cleaned_rows dataframe, 
+# containing only the rows with dates greater than or equal to 2008-01-01,
+# and all of the columns existing before.
+best_foo <- new_foo[cleaned_rows,]
+
+################################################################################################################################################################################################
+######## QUESTION ONE A (1a) STARTS HERE:
+best_foo1<-best_foo[order(best_foo$CirculationDate),]
+View(best_foo1)
+
+# Here, I create approval_duration to hold all of the numbers that represent the differences between
+# the Original Completion Date of the projects and the Approval Date of the projects. 
+approval_duration <- best_foo1$OriginalCompletionDate - best_foo1$ApprovalDate
+
+# Next, I create a data frame called best_foo2 which combines the best_foo1 data frame (post 2008-01-01, no NAs, ordered data)
+# and the approval_duration data frame as defined in the line of code above. 
+# I make sure that the approval_duration column within best_foo2 is a numeric so that I can use it for other functions later on.
+
+best_foo2<-cbind(best_foo1,approval_duration)
+best_foo2$approval_duration<-as.numeric(best_foo2$approval_duration)
+
+# There are NAs within best_foo2 in the approval_duration column so I am removing the NAs again, and storing the cleaned 
+# data frame in a new one called best_foo3, and making sure the approval_duration
+best_foo2.NAs <- which(is.na(best_foo2$approval_duration == TRUE))
+best_foo3 <- best_foo2[-best_foo2.NAs,]
+
+# I'm creating another version of approval_duration which has no NAs, called approval_duration1
+approval_duration.NAs <- which(is.na(approval_duration == TRUE))
+approval_duration1 <- approval_duration[-approval_duration.NAs]
+
+# Within the best_foo3 dataframe (no NAs in the Circulation Date or approval_duration columns), making sure that
+# the approval_duration column is a numeric so that I can plot some graphs.
+# The mean duration of a project upon approval is 643.769 days.
+best_foo3$approval_duration<-as.numeric(best_foo3$approval_duration)
+mean(best_foo3$approval_duration)
+summary(best_foo3$approval_duration)
+
+plot(best_foo2$CirculationDate, approval_duration, 
+     main="Scatterplot: Projects by How Long They Took to Complete", 
+     ylab="Days for Completion",
+     xlab="Circulation Date",
+     type="p",
+     col="dark blue")
+
+abline(h = 643.769, untf = FALSE, col="red", lwd = 3)
+
+hist(best_foo2$approval_duration, breaks = 5, 
+     main="Histogram: Projects by How Long They Took to Complete",
+     xlab="Days for Completion",
+     ylab="Number of Projects (Frequency)", 
+     col="lightsteelblue1")
+
+abline(v = 643.769, untf = FALSE, col="red", lwd = 5)
+
+# Now I'm checking to see how the average duration of projects has changed over time. 
+# In 2008, the mean was 584.04. 
+best_foo08 <- subset(best_foo3, subset = best_foo3$CirculationDate <= "2009-01-01")
+mean(best_foo08$approval_duration)
+
+# In 2009, the mean was 619.20. 
+best_foo09<-best_foo3$CirculationDate>="2009-01-01" & best_foo3$CirculationDate<"2010-01-01"
+best_foo09<-best_foo3[best_foo09,]
+mean(best_foo09$approval_duration)
+
+# I complete this process for the years 2008-2018.
+best_foo10<-best_foo3$CirculationDate>="2010-01-01" & best_foo3$CirculationDate<"2011-01-01"
+best_foo10<-best_foo3[best_foo10,]
+best_foo11<-best_foo3$CirculationDate>="2011-01-01" & best_foo3$CirculationDate<"2012-01-01"
+best_foo11<-best_foo3[best_foo11,]
+best_foo12<-best_foo3$CirculationDate>="2012-01-01" & best_foo3$CirculationDate<"2013-01-01"
+best_foo12<-best_foo3[best_foo12,]
+best_foo13<-best_foo3$CirculationDate>="2013-01-01" & best_foo3$CirculationDate<"2014-01-01"
+best_foo13<-best_foo3[best_foo13,]
+best_foo14<-best_foo3$CirculationDate>="2014-01-01" & best_foo3$CirculationDate<"2015-01-01"
+best_foo14<-best_foo3[best_foo14,]
+best_foo15<-best_foo3$CirculationDate>="2015-01-01" & best_foo3$CirculationDate<"2016-01-01"
+best_foo15<-best_foo3[best_foo15,]
+best_foo16<-best_foo3$CirculationDate>="2016-01-01" & best_foo3$CirculationDate<"2017-01-01"
+best_foo16<-best_foo3[best_foo16,]
+best_foo17<-best_foo3$CirculationDate>="2017-01-01" & best_foo3$CirculationDate<"2018-01-01"
+best_foo17<-best_foo3[best_foo17,]
+best_foo18<-best_foo3$CirculationDate>="2018-01-01" & best_foo3$CirculationDate<"2019-01-01"
+best_foo18<-best_foo3[best_foo18,]
+
+# Making a list of the means so that I can plot this against the years and compare 
+# changes through time.
+meanlist<-c(mean(best_foo08$approval_duration),mean(best_foo09$approval_duration), 
+            mean(best_foo10$approval_duration),mean(best_foo11$approval_duration),
+            mean(best_foo12$approval_duration),mean(best_foo13$approval_duration),
+            mean(best_foo14$approval_duration),mean(best_foo15$approval_duration),
+            mean(best_foo16$approval_duration),mean(best_foo17$approval_duration),
+            mean(best_foo18$approval_duration))
+View(meanlist)
+
+# Adding 2008-2018 years so that I have something to plot on the x-axis.
+yearlist<-c(2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018)
+
+summary(lm(meanlist~yearlist))
+plot(yearlist, meanlist,
+     main = "Project Years by Mean Completion Time",
+     ylab = "Mean Completion Time",
+     xlab = "Project Year",
+     type = "p",
+     col = "blue")
+abline(a=-26325,b=13.399, col="red", lwd = 2)
+legend("topleft",
+       c("Mean project completion time by year", "Best-fit line"),
+       fill = c("blue","red")
+)
+
+# The purported completion is 712 days, 2 years (356*2)... 
+discrepancy <- c(643.769 - 712)
+discrepancy
+
+# Mean = 643.769; this means that it takes about 643-647 days for the average project to be completed.
+# Median = 592 days; this may mean that the projects which take longer to complete are significantly longer... 
+# This is because the mean is higher than the median. 
+mean(approval_duration1)
+median(approval_duration1)
+
+## The new IQR is 384, which provides the difference between Q3 and Q1
+# This means that the total difference between the longer-term projects
+# projects in the dataset and the shorter-term projects is more than one year (356 days)! 
+## DO MORE RESEARCH ABOUT WHAT IQR ENTAILS 
+quantile(approval_duration1)
+IQR(approval_duration1)
+
+View(approval_duration1)
+
+
+################################################################################################################################
+######## QUESTION ONE B (1b) STARTS HERE:
+# How does original planned project duration differ from actual duration 
+# (if actual duration is measured as the duration between “ApprovalDate” and “RevisedCompletionDate”?) 
+# Once again, use means, medians, and interquartile ranges to explain your results. 
+# Checking to see if there are any NAs within the columns I need to compare...
+any(is.na(best_foo2$ApprovalDate))
+any(is.na(best_foo2$RevisedCompletionDate))
+
+# Finding the difference between the approval date for projects and the revised completion date
+# The mean difference is 1217.298 days, which means that the actual duration of projects is, on average
+# 1217 days longer than the original planned project duration.
+actual_duration <- best_foo2$RevisedCompletionDate - best_foo2$ApprovalDate
+mean(actual_duration)
+IQR(actual_duration)
+quantile(actual_duration)
+
+# best_foo1 doesn't have approval duration
+# best_foo2 has approval duration with NAs
+# best_foo3 has approval duration without NAs
+View(best_foo3)
+
+# Creating a new data frame which binds best_foo4 with the actual_duration of projects
+best_foo4<-cbind(best_foo2,actual_duration)
+best_foo4$actual_duration<-as.numeric(best_foo4$actual_duration)
+
+# Making best_foo5 which is the same as best_foo4 but without NAs
+best_foo4.NAs <- which(is.na(best_foo4$approval_duration == TRUE))
+best_foo5 <- best_foo4[-best_foo4.NAs,]
+View(best_foo5)
+
+# The IQR of the difference between the actual duration of projects and the original planned
+# duration is 517
+# The mean difference between the actual duration of projects and the original planned duration 
+# at approval is 573.5294 (573) days. 
+# The median difference between the actual duration of projects and the original planned duration
+# at approval is 485 days
+gap <- actual_duration1 - approval_duration1
+IQR(gap)
+quantile(gap)
+mean(gap)
+median(gap)
+
+# The IQR of the duration at approval is 384 days
+# The mean duration of projects at approval is 644 days
+# The median duration of projects at approval is 592 days
+
+IQR(approval_duration1)
+mean(approval_duration1)
+median(approval_duration1)
+summary(approval_duration1)
+
+# The IQR of the actual duration of projects is 639 days
+# The mean of the actual duration is 1217 days
+# The median of the actual duration is 1121 days
+IQR(actual_duration1)
+mean(actual_duration1)
+median(actual_duration1)
+summary(approval_duration1)
+
+################################################################################################################################
+######## QUESTION TWO (2) STARTS HERE:
+
+# Checking to see whether any of the 'Rating' column in best_foo has NAs
+# Since the output is TRUE, there are some NAs... so I will remove these
+any(is.na(best_foo1$Rating))
+
+# Removing NAs and making a new dataframe
+rating.column.which.have.NAs <- which(is.na(best_foo1$Rating == TRUE))
+ratings.no.NAs <- best_foo1[-rating.column.which.have.NAs,]
+any(is.na(ratings.no.NAs$Rating))
+
+# Checking the length of the Rating column which holds each value (0 to 3)
+length(which(ratings.no.NAs$Rating == 0))
+length(which(ratings.no.NAs$Rating == 1))
+length(which(ratings.no.NAs$Rating == 2))
+length(which(ratings.no.NAs$Rating == 3))
+
+# Adding the length of these to double-check...
+50 + 297 + 1276 + 246
+
+# Checking the total length of the data frame... 
+length(ratings.no.NAs$Rating)
+
+# Calculating percentages
+# 2.675227%
+rating.0 <- (length(which(ratings.no.NAs$Rating == 0))/length(ratings.no.NAs$Rating))*100
+# 15.89085%
+rating.1 <- (length(which(ratings.no.NAs$Rating == 1))/length(ratings.no.NAs$Rating))*100
+# 68.2718%
+rating.2 <- (length(which(ratings.no.NAs$Rating == 2))/length(ratings.no.NAs$Rating))*100
+# 13.16212%
+rating.3 <- (length(which(ratings.no.NAs$Rating == 3))/length(ratings.no.NAs$Rating))*100
+
+2.68 + 15.89 + 68.27 + 13.16
+
+ratings.all <- c(rating.0, rating.1, rating.2, rating.3)
+rating.number <- c(0,1,2,3)
+
+# Getting the mean rating
+ratings.no.NAs$Rating <- (as.numeric(ratings.no.NAs$Rating))
+
+mean(ratings.no.NAs$Rating)
+
+frequency <- table(round(ratings.no.NAs$Rating, digits =1))
+percentage <- c((length(which(ratings.no.NAs$Rating == 0))/length(ratings.no.NAs$Rating))*100,
+                (length(which(ratings.no.NAs$Rating == 1))/length(ratings.no.NAs$Rating))*100,
+                (length(which(ratings.no.NAs$Rating == 2))/length(ratings.no.NAs$Rating))*100,
+                (length(which(ratings.no.NAs$Rating == 3))/length(ratings.no.NAs$Rating))*100)
+percentages <- round(percentage, digits=0)
+
+# Now I have to generate a table and/or figure
+frequency <- table(round(ratings.no.NAs$Rating, digits =1))
+percentage <- c((length(which(ratings.no.NAs$Rating == 0))/length(ratings.no.NAs$Rating))*100,
+                        (length(which(ratings.no.NAs$Rating == 1))/length(ratings.no.NAs$Rating))*100,
+                        (length(which(ratings.no.NAs$Rating == 2))/length(ratings.no.NAs$Rating))*100,
+                        (length(which(ratings.no.NAs$Rating == 3))/length(ratings.no.NAs$Rating))*100)
+percentages <- round(percentage, digits=0)
+
+View(frequency)
+
+rating_table_complete <- rbind(percentages, frequency)
+rating_table_complete
+
+counts <- table(best_foo1$Rating)
+barplot(counts, main="Frequency of Ratings", 
+        xlab="Project Ratings (0: Lowest, 3: Highest", ylab="Frequency",
+        col = "lightsteelblue3")
+counts
+
+################################################################################################################################
+######## QUESTION THREE (3) STARTS HERE:
+
+
+pptas <- which(ratings.no.NAs$Type == "PPTA")
+head(pptas)
+
+no_pptas <- ratings.no.NAs[-pptas,]
+
+# no_pptas.no.NAS <- as.numeric(no_pptas.no.NAS$Rating)
+mean(no_pptas$Rating)
+
+length(which(no_pptas$Rating == 0))
+length(which(no_pptas$Rating == 1))
+length(which(no_pptas$Rating == 2))
+length(which(no_pptas$Rating == 3))
+
+# Calculating percentages
+# 1.992032%
+(length(which(no_pptas$Rating == 0))/length(no_pptas$Rating))*100
+# 14.05805%
+(length(which(no_pptas$Rating == 1))/length(no_pptas$Rating))*100
+# 70.2335%
+(length(which(no_pptas$Rating == 2))/length(no_pptas$Rating))*100
+# 13.71656%
+(length(which(no_pptas$Rating == 3))/length(no_pptas$Rating))*100
+
+# Making sure things add up! They do.
+35 + 247 + 1234 + 241
+str(no_pptas)
+
+no_pptas_counts <- table(no_pptas$Rating)
+barplot(no_pptas_counts, main="Frequency of Ratings", 
+        xlab="Project Ratings (0: Lowest, 3: Highest", ylab="Frequency",
+        col = "steelblue")
+counts
+
+################################################################################################################################
+######## QUESTION FOUR (4) STARTS HERE:
+
+?sort
+# Sorting my data so that the values are increasing in order 
+# in the Revised.Amount column of the dataframe, this ended up not being necessary
+sorted_revised_amount <- sort(best_foo1$RevisedAmount, decreasing = FALSE)
+
+View(best_foo1$RevisedAmount)
+
+# Double-checking to see everything is okay!
+View(sorted_revised_amount)
+
+# Using the quantile() function to separate my data into quartiles
+# So that I can see Q1 (bottom 25% of projects) and Q3 (top 25% of projects)
+quantile(sorted_revised_amount)
+
+bottom_25 <- subset(best_foo1, subset = best_foo1$RevisedAmount <= 0.4)
+View(bottom_25)
+top_25 <- subset(best_foo1, subset = best_foo1$RevisedAmount >= 1.0)
+View(top_25)
+
+# For the bottom 25% of projects in terms of revised budgets, the mean rating is 1.954717
+bottom_25.have.NAs <- which(is.na(bottom_25$Rating == TRUE))
+bottom_25.no.NAs <- bottom_25[-bottom_25.have.NAs, ]
+View(bottom_25.no.NAs)
+mean(bottom_25.no.NAs$Rating)
+
+# For the top 25% of projects in terms of revised budgets, the mean rating is 1.937385
+any(is.na(top_25$Rating))
+mean(top_25$Rating)
+
+# The difference in these ratings is 0.01733208 - very small!
+difference_ratings <- mean(bottom_25.no.NAs$Rating) - mean(top_25$Rating)
+difference_ratings
+
+# Compare the other characteristics of the two project groupings, because there is very little difference in ratings
+bottom_25_country <- prop.table(table(bottom_25$Country))
+top_25_country <- prop.table(table(top_25$Country))
+
+# This table shows that the countries contained in the bottom 25% of projects and top 25% of projects are different
+bottom_top_country_compare <- rbind(bottom_25_country, top_25_country)
+bottom_top_country_compare
+
+# Another comparison of the "Dept" between each of the two groupings
+bottom_25_dept <- prop.table(table(bottom_25$Dept))
+top_25_dept <- prop.table(table(top_25$Dept))
+
+# This table shows that the Departments contained in the bottom 25% of projects and top 25% of projects are different
+bottom_top_dept_compare <- rbind(bottom_25_dept, top_25_dept)
+bottom_top_dept_compare
+
+############## END OF CODE
