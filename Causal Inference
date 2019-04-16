@@ -1,0 +1,289 @@
+##############################################################################################################################
+# QUESTION 2
+##############################################################################################################################
+
+# Instructions:
+# Replicate figure 8 in https://gking.harvard.edu/files/counterf.pdf
+# EXCEPT that this figure considers the implications of
+# adding an interaction term (wardur * untype4) to the basic model. 
+# I want you to consider the implicatiosn of adding a different 
+# interaction term to the basic model -- the interaction term I want 
+# you to consider is (logdead*untype4).
+
+# Initial set-up following from the Peacebuilding Scavenger Hunt done together in class
+library (Matching)
+library (foreign)
+
+foo <- read.csv("https://tinyurl.com/y2zt2hyc")
+
+# extract relevant columns
+foo <- foo[, c(6:8, 11:16, 99, 50, 114, 49, 63, 136, 109, 126, 48, 160, 142, 10)]
+
+# remove rows with missing data
+foo <- foo[c(-19, -47), ]
+
+# check that all missing data is gone...
+which(is.na(foo) == TRUE)
+
+# take a peek at the data set (identify the columns)
+head(foo)
+
+v1 <- read.csv("replication_assign.do")
+
+# Here is the original model, without the interaction term: (wardur * untype4)
+glm1 <- glm(pbs2s3~wartype+logcost+wardur+factnum+factnum2+trnsfcap+untype4+treaty+
+              develop+exp+decade, data=foo, family=binomial)
+
+# Here is the model WITH THE AUTHOR'S specified interaction term: (wardur * untype4)
+glm2 <- glm(pbs2s3~wartype+logcost+wardur+factnum+factnum2+trnsfcap+untype4+treaty+
+              develop+exp+decade+wardur*untype4, data=foo, family=binomial)
+
+# Here is the model WITH THE NEW specified interaction term: (logdead * untype4)
+glm3 <- glm(pbs2s3~wartype+logcost+wardur+factnum+factnum2+trnsfcap+untype4+treaty+
+              develop+exp+decade+logcost*untype4, data=foo, family=binomial)
+
+
+# Getting the mean for each variable
+# In Figure 8 in the original paper, wardur goes up to 315 months.
+
+upperBound <- 315
+
+mean_wartype <- mean(foo$wartype)
+mean_logcost <- mean(foo$logcost)
+mean_factnum <- mean(foo$factnum)
+mean_factnum2 <- mean(foo$factnum2)
+mean_trnsfcap <- mean(foo$trnsfcap)
+mean_treaty <- mean(foo$treaty)
+mean_develop <- mean(foo$develop)
+mean_exp <- mean(foo$exp)
+mean_decade <- mean(foo$decade)
+untype4_treated <- rep(1,upperBound)
+untype4_control <- rep(0,upperBound)
+
+# Running 'for' loop for glm1 to establish the effect (taken by treatment - control)
+
+effect_glm1 <- c()
+effect_glm1_wInt <- c()
+for (i in c(1:upperBound)) { 
+  treated_glm1 <- data.frame(mean_wartype, mean_logcost, i, mean_factnum, 
+                             mean_factnum2, mean_trnsfcap, mean_treaty, mean_develop, 
+                             mean_exp, mean_decade, untype=1)
+  
+  names(treated_glm1) <- c("wartype", "logcost", "wardur", "factnum", "factnum2", "trnsfcap", "treaty", 
+                           "develop", "exp", "decade", "untype4")
+  
+  control_glm1 <- data.frame(mean_wartype, mean_logcost, i, mean_factnum, 
+                             mean_factnum2, mean_trnsfcap, mean_treaty, mean_develop, 
+                             mean_exp, mean_decade, untype=0)
+  
+  names(control_glm1) <- c("wartype", "logcost", "wardur", "factnum", "factnum2", "trnsfcap", "treaty", 
+                           "develop", "exp", "decade", "untype4")
+  
+  
+  effect_glm1[i] <- predict(glm1, newdata=treated_glm1, type='response') - predict(glm1, newdata=control_glm1, type="response")
+  
+  effect_glm1_wInt[i] <- predict(glm2, newdata=treated_glm1, type='response') - predict(glm2, newdata=control_glm1, type="response")
+  
+}
+
+# Plotting the first figure
+
+plot (c(1:upperBound), effect_glm1, xlim=c(0,upperBound), ylim=c(0,0.8), type = "l",lty="dotted",
+      xlab="Duration of wars in months",
+      ylab="Marginal effects of UN peacekeeping operations", 
+      main="Causal Effect of Multidimensional UN Peacekeeping Operations",
+      tck=0)
+
+par(new=TRUE)
+
+# Overlaying another figure so I can plot the line with the interaction term
+# Adding text labels at specified coordinates on the graph
+
+plot (c(1:upperBound), effect_glm1_wInt, xlim=c(0,upperBound), ylim=c(0,0.8), type = "l",
+      xlab="Duration of wars in months",
+      ylab="Marginal effects of UN peacekeeping operations", 
+      main="Causal Effect of Multidimensional UN Peacekeeping Operations",
+      tck=0)
+text(90,0.21,"Model with Interaction Term",cex=1)
+text(220,0.41,"Dotted: Original Model",cex=1)
+
+# Repeating this process except with the new interaction term specified (logdead * untype4)
+# Getting the mean for each variable
+# Logdead (aka logcost) goes up to 20
+
+upperBound <- 20
+
+mean_wartype <- mean(foo$wartype)
+mean_logcost <- mean(foo$logcost)
+mean_factnum <- mean(foo$factnum)
+mean_factnum2 <- mean(foo$factnum2)
+mean_trnsfcap <- mean(foo$trnsfcap)
+mean_treaty <- mean(foo$treaty)
+mean_develop <- mean(foo$develop)
+mean_exp <- mean(foo$exp)
+mean_decade <- mean(foo$decade)
+mean_wardur <- mean(foo$wardur)
+untype4_treated <- rep(1,upperBound)
+untype4_control <- rep(0,upperBound)
+
+# Running 'for' loop for glm1 to establish the effect (taken by treatment - control)
+
+effect_glm2 <- c()
+effect_glm2_wInt <- c()
+for (i in c(1:upperBound)) { 
+  treated_glm2 <- data.frame(mean_wartype, i, mean_wardur, mean_factnum, 
+                             mean_factnum2, mean_trnsfcap, mean_treaty, mean_develop, 
+                             mean_exp, mean_decade, untype=1)
+  
+  names(treated_glm2) <- c("wartype", "logcost", "wardur", "factnum", "factnum2", "trnsfcap", "treaty", 
+                           "develop", "exp", "decade", "untype4")
+  
+  control_glm2 <- data.frame(mean_wartype, i, mean_wardur, mean_factnum, 
+                             mean_factnum2, mean_trnsfcap, mean_treaty, mean_develop, 
+                             mean_exp, mean_decade, untype=0)
+  
+  names(control_glm2) <- c("wartype", "logcost", "wardur", "factnum", "factnum2", "trnsfcap", "treaty", 
+                           "develop", "exp", "decade", "untype4")
+  
+  
+  effect_glm2[i] <- predict(glm1, newdata=treated_glm2, type='response') - predict(glm1, newdata=control_glm2, type="response")
+  
+  effect_glm2_wInt[i] <- predict(glm3, newdata=treated_glm2, type='response') - predict(glm3, newdata=control_glm2, type="response")
+  
+}
+
+# Plotting in the same way as above
+
+plot (c(1:upperBound), effect_glm2, xlim=c(0,upperBound), ylim=c(0,0.8), type = "l",lty="dotted",
+      xlab="Log number of death/displacements",
+      ylab="Marginal effects of UN peacekeeping operations", 
+      main="Causal Effect of Multidimensional UN Peacekeeping Operations",
+      tck=0)
+
+par(new=TRUE)
+
+plot (c(1:upperBound), effect_glm2_wInt, xlim=c(0,upperBound), ylim=c(0,0.8), type = "l",
+      xlab="Log number of death/displacements",
+      ylab="Marginal effects of UN peacekeeping operations", 
+      main="Causal Effect of Multidimensional UN Peacekeeping Operations",
+      tck=0)
+text(5,0.5,"Solid: Model with Interaction Term",cex=0.8)
+text(18,0.55,"Dotted: Original Model",cex=0.8)
+
+##############################################################################################################################
+# QUESTION 3
+##############################################################################################################################
+
+# Define treatment as below:
+Tr <- rep(0, length(foo$uncint))
+Tr[which(foo$uncint != 0 & foo$uncint != 1)] <- 1
+# What does this mean? What is "treatment"?
+
+##############################################################################################################################
+# QUESTION 4
+##############################################################################################################################
+
+# Reading in the data, selecting relevant columns
+# Binding the defined treatment together with the data into one frame
+
+foo4 <- read.csv("https://tinyurl.com/y2zt2hyc")
+Tr <- rep(0, length(foo4$uncint))
+Tr[which(foo4$uncint != "None")] <- 1
+foo4<-foo4[c("wartype", "logcost", "wardur", "factnum", "factnum2", "trnsfcap", "treaty", "develop", "exp", "decade", "pbs2l", "pbs5l")]
+foo4 <- data.frame(cbind(foo4, Tr))
+
+# Changing the data type into a numeric, and recoding the "2" and "1" into "1" and "0". 
+foo4$pbs2l <- as.numeric(foo4$pbs2l)-1
+foo4$pbs5l <- as.numeric(foo4$pbs5l)-1
+
+# Removing all NAs
+foo4 <- na.omit(foo4)
+
+# Outcome Y1 is after 2 years of intervention
+# Outcome Y2 is after 5 years of intervention
+Y1 <- foo4$pbs2l
+Y2 <- foo4$pbs5l
+
+##############################################################################################################################
+# LOGISTIC REGRESSION MODELS
+year2glm <- glm(pbs2l ~ wartype+logcost+wardur+factnum+factnum2+trnsfcap+
+                  treaty+develop+exp+decade+Tr, data = foo4, family = "binomial")
+summary(year2glm)
+
+year5glm <- glm(pbs5l ~ wartype+logcost+wardur+factnum+factnum2+trnsfcap+
+                  treaty+develop+exp+decade+Tr, data = foo4, family = "binomial")
+summary(year5glm)
+
+foo4_treatment <- subset(foo4, foo4$Tr=="1")
+foo4_control <- subset(foo4, foo4$Tr=="0")
+
+# Getting the treatment effects for each of these modesls, 
+# by subtracting the mean of the control from the mean of the treatment
+
+mean(predict(year2glm,newdata=foo4_treatment,type="response")) - mean(predict(year2glm,newdata=foo4_control,type="response"))
+mean(predict(year5glm,newdata=foo4_treatment,type="response")) - mean(predict(year5glm,newdata=foo4_control,type="response"))
+
+# p-value for both models
+MatchBalance(Tr ~ wartype+logcost+wardur+factnum+factnum2+trnsfcap+
+               treaty+develop+exp+decade+Tr, data = foo4, nboots=10000)
+
+##############################################################################################################################
+# PROPENSITY SCORE MODEL
+propensity <- glm(Tr~ wartype+logcost+wardur+factnum+factnum2+trnsfcap+
+                    treaty+develop+exp+decade,data=foo4, family = "binomial")
+
+# 2 Years
+mout2 <- Match(Y=Y1,  Tr=foo4$Tr, X=propensity$fitted.values, M=1, BiasAdjust = TRUE)
+summary(mout2)
+
+# First getting the effects with NO adjustment
+mout2$est.noadj
+
+# Now using MatchBalance to get the effects WITH adjustment
+mb2years <- MatchBalance(Tr ~ wartype+logcost+wardur+factnum+factnum2+trnsfcap+
+                           treaty+develop+exp+decade, data=foo4, match.out=mout2, nboots = 10000)
+
+# Repeat same process for 5 years post-civil war
+# 5 Years
+mout5 <- Match(Y=Y2,  Tr=foo4$Tr, X=propensity$fitted.values, M=1, BiasAdjust = TRUE)
+summary(mout5)
+mout5$est.noadj
+
+mb5years <- MatchBalance(Tr ~ wartype+logcost+wardur+factnum+factnum2+trnsfcap+
+                           treaty+develop+exp+decade, data=foo4, match.out=mout5, nboots = 10000)
+
+##############################################################################################################################
+# GENETIC MATCHING
+# Defining the X input for the GenMatch function
+X <- cbind(foo4$wartype, foo4$logcost, foo4$wardur, foo4$factnum, foo4$factnum2, 
+           foo4$trnsfcap, foo4$treaty, foo4$develop, foo4$exp, foo4$decade)
+genout <- GenMatch(Tr=foo4$Tr, X=X, M=1, pop.size=200, max.generations=25, 
+                   wait.generations=20, estimand = "ATT")
+
+# 2 Years
+# Getting the output from the Match function, using the GenMatch for the weighted matrix value
+mout_gen2 <- Match(Y=Y1, Tr=foo4$Tr, X=X, M=1, Weight.matrix=genout, BiasAdjust = TRUE, estimand = "ATT")
+summary(mout_gen2)
+
+# Treatment effect without bias adjustment, similar to above
+mout_gen2$est.noadj
+
+# Treatment effect WITH bias adjustment
+genmb2 <- MatchBalance (Tr ~ wartype+logcost+wardur+factnum+factnum2+trnsfcap+
+                          treaty+develop+exp+decade, data = foo4, match.out=mout_gen2, nboots = 10000) 
+
+
+# 5 Years
+# Repeat process for 5 years post-civil war
+mout_gen5 <- Match(Y=Y2, Tr=foo4$Tr, X=X, M=1, Weight.matrix=genout, BiasAdjust = TRUE, estimand = "ATT")
+summary(mout_gen5)
+
+# Treatment effect without bias adjustment
+mout_gen5$est.noadj
+
+genmb5 <- MatchBalance (Tr ~ wartype+logcost+wardur+factnum+factnum2+trnsfcap+
+                          treaty+develop+exp+decade, data = foo4, match.out=mout_gen5, nboots = 10000) 
+
+##############################################################################################################################
+# FINISHED
+##############################################################################################################################
