@@ -4,6 +4,9 @@
 # https://doi.org/10.1073/pnas.0907998106
 
 
+# GENETIC MATCHING EXTENSION 
+# ALL CODE WRITTEN BY HENRY HILL, 2019 (https://github.com/henryhill1999)
+
 library(Matching)
 library(rgenoud)
 
