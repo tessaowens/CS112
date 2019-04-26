@@ -1,0 +1,188 @@
+# REPLICATION CODE FOR 
+# Burke, M. B., Miguel, E., Satyanath, S., Dykema, J. A., & Lobell, D. B. (2009). 
+# Warming increases the risk of civil war in Africa. Proceedings of the National Academy of Sciences, 106(49), 20670 LP-20674. 
+# https://doi.org/10.1073/pnas.0907998106
+
+
+library(Matching)
+library(rgenoud)
+
+#LOAD IN DATA
+data=read.csv("clim_conflict_for_R.csv") 
+
+head(data)
+#bootstrap climate-conflict regressions, using different climate variables or controls
+hold=list()
+hold[[1]]=data.frame(data[,c(1,106,42,45,110:150,178:218)])          #levels with country-spec time trends, temp only
+hold[[2]]=data.frame(data[,c(1,106,42,45,54,57,110:150,178:218)])    #levels with country-spec time trends, temp and prec
+hold[[3]]=data.frame(data[,c(1,106,42,45,10,228,110:150,177)])       #levels with simple time trend, temp only, gdp and polity lagged
+hold[[4]]=data.frame(data[,c(1,106,42,45,54,57,10,228,110:150,177)]) #levels with simple time trend, temp and prec, gdp and polity lagged
+hold[[5]]=data.frame(data[,c(1,106,42,45,54,57,110:150,177)])        #levels with simple time trends, temp and prec
+hold[[6]]=data.frame(data[,c(1,106,48,51,60,63,110:150,178:218)])    #diffs w/ country time trend, temp and precip
+hold[[7]]=data.frame(data[,c(1,106,219:222,110:150,178:218)])        #unweight dev trend, temp and precip, country time trend
+hold[[8]]=data.frame(data[,c(1,106,42,45,11,12,110:150,178:218)])    #unweight levels with gpcp precip, country time trend
+hold[[9]]=data.frame(data[,c(1,106,70,77,71,78,110:150,178:218)])    #NCC levels w/ country time trends
+
+# BOOTSTRAP THE 95% CONFIDENCE INTERVALS AND POINT ESTIMATES FOR EACH MODEL
+storage <- list()
+for (j in 1:9) {
+  aa=hold[[j]]
+  aa=aa[which(!is.na(aa[,3])),]
+  aa=aa[which(!is.na(aa[,5])),] 
+  aa=aa[,-1]#drop NAs so we don't sample them
+  coef=c()
+  for (i in 1:10000) {
+    spl=sample(1:dim(aa)[1],replace=T)  #sample observations with replacement
+    bb=aa[spl,]
+    model=lm(formula(bb),bb)
+    coef=rbind(coef,model$coefficients[1:7])  #collect coefficient estimates
+    if (substr(i,nchar(i)-2,nchar(i))=="000") {print(i)} #show progress
+  }
+  storage[[j]] = data.frame(coef)
+}
+
+# REPRODUCING THE TABLE DATA
+
+#MODEL 1
+
+  #INTERCEPT
+  median(storage[[1]][,1])
+  sd(storage[[1]][,1])
+  
+  #TEMP
+  median(storage[[1]][,2])
+  sd(storage[[1]][,2])
+    
+  #LAGGED TEMP
+  median(storage[[1]][,3])
+  sd(storage[[1]][,3])
+
+#MODEL 2
+  
+  #INTERCEPT
+  median(storage[[2]][,1])
+  sd(storage[[2]][,1])
+  
+  #TEMP
+  median(storage[[2]][,2])
+  sd(storage[[2]][,2])
+  
+  #LAGGED TEMP
+  median(storage[[2]][,3])
+  sd(storage[[2]][,3])
+  
+  #PREC
+  median(storage[[2]][,4])
+  sd(storage[[2]][,4])
+  
+  #LAGGED PREC
+  median(storage[[2]][,5])
+  sd(storage[[2]][,5])
+  
+#MODEL 3
+  
+  #INTERCEPT
+  median(storage[[4]][,1])
+  sd(storage[[4]][,1])
+  
+  #TEMP
+  median(storage[[4]][,2])
+  sd(storage[[4]][,2])
+  
+  #LAGGED TEMP
+  median(storage[[4]][,3])
+  sd(storage[[4]][,3])
+  
+  #PREC
+  median(storage[[4]][,4])
+  sd(storage[[4]][,4])
+  
+  #LAGGED PREC
+  median(storage[[4]][,5])
+  sd(storage[[4]][,5])
+  
+  #LAGGED PER CAPITA GDP
+  median(storage[[4]][,6])
+  sd(storage[[4]][,6])
+  
+  #LAGGED REGIME TYPE
+  median(storage[[4]][,7])
+  sd(storage[[4]][,7])
+
+# TEMPERATURE CONFIDENCE INTERVALS
+for (i in 1:9){
+  print(i)
+  print(quantile(storage[[i]][,2],c(0.025,0.5,0.975))[1:3])
+  print(quantile(storage[[i]][,2],c(0.025,0.5,0.975))[1:3])
+}
+
+aa=data.frame(data[,c(1,106,219,221,10,228)])
+length(which(is.na(aa[,3]))) #145 NAs
+length(which(is.na(aa[,5]))) #160 NAs
+aa=aa[which(!is.na(aa[,3])),]
+aa=aa[which(!is.na(aa[,5])),]    #drop NAs
+
+#check the balance to begin with
+model <- glm(war_prio_new ~ cru_temp_diftrend + cru_prec_diftrend + gdp_l +
+               polity2_lag,
+              data=aa[-1], family='binomial')
+
+MatchBalance(war_prio_new ~ cru_temp_diftrend + cru_prec_diftrend + gdp_l +
+               polity2_lag,
+               aa,nboots=500)
+
+
+q1 <- quantile(aa$cru_temp_diftrend,0.25)
+q2 <- quantile(aa$cru_temp_diftrend,0.5)
+q3 <- quantile(aa$cru_temp_diftrend,0.75)
+
+# FIRST DEFINE TREATMENT/CONTROL AS ABOVE/BELOW THE 50TH PERCENTILE
+
+control <- aa[which(aa$cru_temp_diftrend < q2),][,-c(3)]
+treat <- aa[which(aa$cru_temp_diftrend > q2),][,-c(3)]
+
+control <- cbind(rep(0,nrow(control)),control)
+names(control)[1] <- 'Tr'
+treat <- cbind(rep(1,nrow(treat)),treat)
+names(treat)[1] <- 'Tr'
+matchData <- rbind(control,treat)
+
+Y <- matchData[,3]
+Tr <- matchData[,1]
+cnt <- matchData[,2]
+X <- matchData[,-c(1,2,3)]
+
+genout <- GenMatch(Tr=Tr, X=X, pop.size=200, max.generations=30, M=2,
+                   wait.generations=10, nboots=50)
+
+mout <- Match(Y = Y, Tr=Tr, X=X, M=2,
+                 Weight.matrix = genout, BiasAdjust = TRUE)
+summary(mout)
+
+moutGenBalance <- MatchBalance(formula(matchData[,-c(2,3)]), data = matchData[,-c(2,3)], nboots=500, match.out = mout)
+
+
+# THEN DEFINE TREATMENT AS ABOVE THE 75TH PERCENTILE AND CONTROL AS BELOW THE 25TH PERCENTILE
+
+control <- aa[which(aa$cru_temp_diftrend < q2),][,-c(3)]
+treat <- aa[which(aa$cru_temp_diftrend > q2),][,-c(3)]
+
+control <- cbind(rep(0,nrow(control)),control)
+names(control)[1] <- 'Tr'
+treat <- cbind(rep(1,nrow(treat)),treat)
+names(treat)[1] <- 'Tr'
+matchData <- rbind(control,treat)
+
+Y <- matchData[,3]
+Tr <- matchData[,1]
+cnt <- matchData[,2]
+X <- matchData[,-c(1,2,3)]
+
+genout <- GenMatch(Tr=Tr, X=X, pop.size=200, max.generations=30, M=2,
+                   wait.generations=10, nboots=50)
+
+mout <- Match(Y = Y, Tr=Tr, X=X, M=2,
+                 Weight.matrix = genout, BiasAdjust = TRUE)
+summary(mout)
+
+moutGenBalance <- MatchBalance(formula(matchData[,-c(2,3)]), data = matchData[,-c(2,3)], nboots=500, match.out = mout)
